@@ -67,8 +67,8 @@ positioning, not decoration.
 
 ## Brand spellings (deliberate, do not "correct")
 
-PsikiQ (wordmark) · psikick.ai / psikick.io (domains) · Qollapsis (engine) ·
-AUBIT · NOW Group
+PsikiQ (wordmark) · psikick.ai / psikick.io (domains) · Elenchus (engine,
+renamed from Qollapsis 2026-09-05) · AUBIT · NOW Group
 
 ## History
 
