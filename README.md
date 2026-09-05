@@ -14,8 +14,9 @@ Deploy = serve `index.html`. GitHub Pages builds from `main` at root.
 
 ## Open items
 
-- CTA `Book the diagnostic` points at `href="#"` — swap for the GHL calendar /
-  booking URL before this takes real traffic.
+- **Two CTAs still point at `href="#"`** — `[data-cta="quiz"]` in section iv
+  (the diagnostic itself, not built yet) and `[data-cta="book"]` in the closing
+  CTA (needs the GHL calendar / booking URL).
 - Custom domain: psikick.ai / psikick.io once registered — Settings → Pages →
   custom domain, then a CNAME to `nexus-mkii.github.io`.
 - Fonts need internet at runtime. If an offline demo is ever a risk, self-host
@@ -25,6 +26,19 @@ Deploy = serve `index.html`. GitHub Pages builds from `main` at root.
 - `prefers-reduced-motion` is respected — leave that in.
 - The three testimonials name real people and are marked "true, or about to be".
   Worth their sign-off before this sits on a live brand domain.
+
+## Section iv — the instrument
+
+Positions the AUBIT Business Diagnostic on **Greiner's growth model**: five
+phases of growth, each ending in the crisis that forces the next (leadership,
+autonomy, control, red tape, growth). Note the spelling — Larry E. Greiner,
+*Evolution and Revolution as Organizations Grow*. The page uses the classic
+five-phase form; the 1998 revision adds a sixth (alliances → crisis of identity)
+if it's ever wanted.
+
+The quiz it points at is not built. When it is, it should explain itself as it
+runs — each question stating what it establishes and why — because that is the
+positioning, not decoration.
 
 ## Brand spellings (deliberate, do not "correct")
 
