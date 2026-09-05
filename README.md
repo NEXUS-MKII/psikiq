@@ -14,9 +14,9 @@ Deploy = serve `index.html`. GitHub Pages builds from `main` at root.
 
 ## Open items
 
-- **Two CTAs still point at `href="#"`** — `[data-cta="quiz"]` in section iv
-  (the diagnostic itself, not built yet) and `[data-cta="book"]` in the closing
-  CTA (needs the GHL calendar / booking URL).
+- **`[data-cta="book"]` still has no destination** — set `BOOK_URL` in the
+  script's wiring block to the GHL calendar link. It is the only unset value.
+  (`[data-cta="quiz"]` is wired — see below.)
 - Custom domain: psikick.ai / psikick.io once registered — Settings → Pages →
   custom domain, then a CNAME to `nexus-mkii.github.io`.
 - Fonts need internet at runtime. If an offline demo is ever a risk, self-host
@@ -26,6 +26,31 @@ Deploy = serve `index.html`. GitHub Pages builds from `main` at root.
 - `prefers-reduced-motion` is respected — leave that in.
 - The three testimonials name real people and are marked "true, or about to be".
   Worth their sign-off before this sits on a live brand domain.
+
+## The Prognosis diagnostic (wired, headless)
+
+The quiz is a live hosted service; this page renders it in PsikiQ markup off
+its API. The engine scores — nothing about the scoring is reimplemented here.
+
+    Base URL   https://crisisquiz.nowgroup.co.nz     <- single const, QUIZ_BASE
+    Config     GET  /quiz/api/prognosis/config
+    Submit     POST /quiz/api/prognosis/submit
+    Hosted     /quiz/prognosis   (used as the no-JS CTA fallback)
+
+**Moving it to a PsikiQ host** (e.g. `quiz.psikick.ai`) is one line — change
+`QUIZ_BASE` — *plus* adding the new origin to the engine's CORS allowlist at
+`lmg/config/quiz_embed.json`, or the browser blocks every call.
+
+CORS is allow-listed for `https://nexus-mkii.github.io` and verified working
+from it. Note that this allows every Pages site on the account, not just
+`/psikiq/` — that is how Pages origins work. A custom domain tightens it.
+
+Verified end-to-end from the live origin: 138-option type-ahead, 12 universal
++ 3 sector questions for trades, a reveal after every answer, axis 6% -> 100%,
+honeypot posted offscreen, contact skippable, and both read shapes — the
+sector case (3 tiles) and the coarse-only case (1 tile, sector and gap
+dropped, with a note saying why). Only 4 of 25 verticals have a sector model,
+so coarse-only is the common path, not an edge case.
 
 ## Section iv — the instrument
 
