@@ -37,7 +37,7 @@
      GHL puts it in, so the split hero and the rollers run the full viewport. */
   .pq{font-family:'Chakra Petch',system-ui,sans-serif;font-weight:300;background:var(--void);color:var(--white);
     line-height:1.55;-webkit-font-smoothing:antialiased;position:relative;
-    width:100vw;margin-left:calc(50% - 50vw);text-align:left;}
+    width:var(--pqw,100vw);margin-left:calc(50% - var(--pqw,100vw) / 2);text-align:left;}
   html,body{overflow-x:hidden;}
   .pq img{max-width:none;}
   .disp{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;line-height:1.0;text-transform:uppercase;}

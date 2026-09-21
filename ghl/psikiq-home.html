@@ -1,6 +1,8 @@
 <!-- PsikiQ home — paste this whole file into ONE GHL "Custom Code" element -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Michroma&family=Chakra+Petch:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap">
-<script>document.documentElement.className+=" js";</script>
+<script>document.documentElement.className+=" js";
+/* the real layout width, scrollbar excluded — 100vw alone is off by half a scrollbar */
+(function(){function s(){document.documentElement.style.setProperty("--pqw",document.documentElement.clientWidth+"px");}s();addEventListener("resize",s);})();</script>
 <div class="pq">
 
   <!-- THE SEEKER — living golden winged orb that flies the page & illuminates -->
