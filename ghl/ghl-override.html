@@ -1,0 +1,9 @@
+<style>
+  /* GHL caps every section's inner row at 1170px, even "full width" ones.
+     Lift it — and the row/column padding — only on the section holding this page. */
+  .c-section:has(.hero) > .inner{max-width:none!important;width:100%!important;}
+  .c-section:has(.hero),
+  .c-section:has(.hero) .c-row,
+  .c-section:has(.hero) .c-column{padding:0!important;margin:0!important;}
+  body{background:#17110A!important;}
+</style>

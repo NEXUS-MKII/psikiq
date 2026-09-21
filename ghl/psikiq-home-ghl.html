@@ -1,4 +1,13 @@
-<!-- PsikiQ home — ONE Custom Code element. Section: full width, padding 0. -->
+<!-- PsikiQ home — ONE Custom Code element, full-width section. -->
+<style>
+  /* GHL caps every section's inner row at 1170px, even "full width" ones.
+     Lift it — and the row/column padding — only on the section holding this page. */
+  .c-section:has(.hero) > .inner{max-width:none!important;width:100%!important;}
+  .c-section:has(.hero),
+  .c-section:has(.hero) .c-row,
+  .c-section:has(.hero) .c-column{padding:0!important;margin:0!important;}
+  body{background:#17110A!important;}
+</style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Michroma&family=Chakra+Petch:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Michroma&family=Chakra+Petch:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -641,17 +650,7 @@
     .movement svg{opacity:1;}
   }
 </style>
-<style>
-  /* GHL puts the block inside a centred container. This root escapes it to the
-     full window width so the split hero and the rollers run edge to edge. */
-  .pq{position:relative;width:var(--pqw,100vw);margin-left:calc(50% - var(--pqw,100vw) / 2);}
-</style>
-<script>
-  document.documentElement.className+=' js';
-  (function(){var d=document.documentElement;function s(){d.style.setProperty('--pqw',d.clientWidth+'px');}
-   s();addEventListener('resize',s);addEventListener('load',s);if(window.ResizeObserver){new ResizeObserver(s).observe(d);}})();
-</script>
-<div class="pq">
+<script>document.documentElement.className+=' js';</script>
 
   <!-- THE SEEKER — living golden winged orb that flies the page & illuminates -->
   <div class="seeker" id="seeker" aria-hidden="true">
@@ -966,7 +965,7 @@
       <div class="qz-body"><div class="qz-inner" id="qzInner"></div></div>
     </div>
   </div>
-</div>
+
 <script>
 (function(){
   'use strict';
