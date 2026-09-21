@@ -1,0 +1,726 @@
+<!-- 13 · SCRIPTS — paste LAST. -->
+<script>
+(function(){
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── WIRING ── the only two lines to change when the destinations exist.
+     Leave a value empty and that CTA stays inert rather than linking nowhere.
+     NOTE: the quiz must be reachable on a PUBLIC host — a 127.0.0.1 address
+     resolves to the visitor's own machine, so it works for nobody but you. */
+  var BOOK_URL = '';   /* GHL calendar / booking link — the only one still unset */
+  window.PSIKIQ_BOOK_URL = BOOK_URL;
+  [].forEach.call(document.querySelectorAll('[data-cta="book"]'),function(el){
+    if(BOOK_URL){ el.setAttribute('href',BOOK_URL); }
+  });
+
+  /* ── HUD: progress rail + phase readout ─────────────────────────── */
+  var pf=document.getElementById('pf'), rd=document.getElementById('rd'), st=document.getElementById('st');
+  var band=document.getElementById('collapseBand'), cbPct=document.getElementById('cbPct');
+
+  function progress(){
+    var doc=document.documentElement, max=doc.scrollHeight-doc.clientHeight;
+    var p = max>0 ? Math.min(1,doc.scrollTop/max) : 0;
+    pf.style.width=(p*100).toFixed(1)+'%';
+  }
+
+  /* the collapse is driven by how far we are through its own pinned band,
+     not by a page-wide percentage — so adding sections never desyncs it */
+  function collapse(){
+    if(reduce){ band.style.setProperty('--p','1'); cbPct.innerHTML='100<i>%</i>'; return; }
+    var r=band.getBoundingClientRect(), total=r.height-window.innerHeight;
+    var p = total>0 ? Math.min(1,Math.max(0,-r.top/total)) : 0;
+    band.style.setProperty('--p',p.toFixed(4));
+    var n=Math.round(p*100)+''; while(n.length<3){n='0'+n;}
+    cbPct.innerHTML=n+'<i>%</i>';
+  }
+
+  /* the rollers turn as you pass them — one rotation mapped across the
+     window plus the roller's own height, so the turn reads at any scroll speed */
+  var rollers=[].slice.call(document.querySelectorAll('.roller'));
+  function turnRollers(){
+    for(var i=0;i<rollers.length;i++){
+      var el=rollers[i], r=el.getBoundingClientRect(), span=window.innerHeight+r.height;
+      var p = span>0 ? (window.innerHeight-r.top)/span : 0;
+      p = Math.max(0,Math.min(1,p));
+      el.style.setProperty('--shift',(p*Math.max(700,window.innerWidth*0.8)).toFixed(0)+'px');
+    }
+  }
+
+  var ticking=false;
+  function onScroll(){
+    if(ticking) return;
+    ticking=true;
+    requestAnimationFrame(function(){ progress(); collapse(); turnRollers(); ticking=false; });
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll);
+  progress(); collapse(); turnRollers();
+
+  /* phase readout follows whichever section owns the middle of the viewport */
+  var phaseO=new IntersectionObserver(function(en){
+    en.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var d=(e.target.getAttribute('data-phase')||'').split('|');
+      if(d.length===2){ rd.textContent=d[0]; st.textContent='STATE · '+d[1]; }
+    });
+  },{rootMargin:'-45% 0px -45% 0px'});
+  [].forEach.call(document.querySelectorAll('[data-phase]'),function(s){phaseO.observe(s);});
+
+  /* ── wave collapses into particles ──────────────────────────────── */
+  var pg=document.getElementById('particles'), wavePath=document.getElementById('wavePath'), built=false;
+  function buildParticles(){
+    if(built) return; built=true;
+    for(var i=0;i<8;i++){
+      var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx',25+i*67); c.setAttribute('cy',32); c.setAttribute('r',0); c.setAttribute('fill','#E6BE6A');
+      pg.appendChild(c);
+    }
+  }
+  var waveO=new IntersectionObserver(function(en){
+    en.forEach(function(e){
+      if(!e.isIntersecting) return;
+      buildParticles();
+      if(reduce) return;
+      wavePath.animate([{opacity:.8},{opacity:.1}],{duration:1400,fill:'forwards',easing:'ease-in'});
+      [].forEach.call(pg.querySelectorAll('circle'),function(c,i){
+        c.animate([{r:0,opacity:0},{r:5,opacity:1}],{duration:600,delay:300+i*90,fill:'forwards',easing:'cubic-bezier(.2,.8,.2,1)'});
+      });
+    });
+  },{threshold:.5});
+  waveO.observe(document.querySelector('.beat-mid'));
+
+  /* ── reveal triggers: sliders, pane, and the line-by-line opener ─── */
+  var revO=new IntersectionObserver(function(en){
+    en.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); revO.unobserve(e.target); } });
+  },{threshold:.3});
+  revO.observe(document.querySelector('.beat-light'));
+  revO.observe(document.querySelector('.beat-mid'));
+  revO.observe(document.getElementById('riseHead'));
+
+  /* ── the noise, lit: a second copy of the same words, revealed only
+        where the travelling mask passes. Cloned so the two can never
+        drift out of sync. ─────────────────────────────────────────── */
+  (function(){
+    var base=document.getElementById('noiseBase');
+    if(!base) return;
+    var lit=base.cloneNode(true);
+    lit.removeAttribute('id');
+    lit.className='noise lit';
+    lit.setAttribute('aria-hidden','true');
+    base.parentNode.appendChild(lit);
+  })();
+
+  /* ── SEEKER: loose living flight path, dust trail, torch bloom ───── */
+  (function(){
+    var seeker=document.getElementById('seeker');
+    if(!seeker || reduce) return;
+    var W=window.innerWidth, H=window.innerHeight;
+    window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;});
+    var t=0, lastDust=0, lastTorch=0, px=W*0.5, py=H*0.5;
+    var small=window.innerWidth<=640;
+    window.addEventListener('resize',function(){small=window.innerWidth<=640;});
+    function frame(ts){
+      t+=0.012;
+      var cx = W*(0.5 + 0.34*Math.sin(t*0.8) + 0.10*Math.sin(t*1.9));
+      var cy = H*(0.30 + 0.18*Math.sin(t*1.3));
+      px += (cx-px)*0.06; py += (cy-py)*0.06;
+      seeker.style.transform='translate('+(px-40)+'px,'+(py-24)+'px)';
+      if(ts-lastDust>(small?120:60)){
+        lastDust=ts;
+        var d=document.createElement('div'); d.className='dust';
+        d.style.left=px+'px'; d.style.top=py+'px'; document.body.appendChild(d);
+        d.animate([{opacity:.9,transform:'translate(-50%,-50%) scale(1)'},{opacity:0,transform:'translate(-50%,-50%) scale(.2) translateY(10px)'}],{duration:900,easing:'ease-out',fill:'forwards'});
+        setTimeout(function(){d.remove();},950);
+      }
+      if(ts-lastTorch>(small?270:140)){
+        lastTorch=ts;
+        var tr=document.createElement('div'); tr.className='torch';
+        tr.style.left=px+'px'; tr.style.top=py+'px'; document.body.appendChild(tr);
+        tr.animate([{opacity:.8,transform:'translate(-50%,-50%) scale(.6)'},{opacity:0,transform:'translate(-50%,-50%) scale(1.3)'}],{duration:1100,easing:'ease-out',fill:'forwards'});
+        setTimeout(function(){tr.remove();},1150);
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+
+  /* ── THE BOOK: four pages, two spreads, turning over the spine ──── */
+  (function(){
+    var PAGES=[
+      {n:'i', quote:'&ldquo;I ran the diagnostic on my own network. It surfaced the message gap I&rsquo;d been circling for years &mdash; then filled the pipeline faster than I could handle it.&rdquo;',
+       who:'NOW Group', meta:'founder diagnostic &middot; networking funnel'},
+      {n:'ii', quote:'&ldquo;We had to switch the quiz and ads <i>off</i> &mdash; it was funnelling too fast. We relaunched, and it accelerated again. That&rsquo;s a problem I&rsquo;ll take every day.&rdquo;',
+       who:'Lara Maloney', meta:'MyFuture &middot; wealth advisory'},
+      {n:'iii', quote:'&ldquo;First engine off the line. It revived a Facebook campaign that had produced two bad leads &mdash; and turned it into ten good ones a month once they took the wheel.&rdquo;',
+       who:'Aaron &middot; TMT', meta:'trades &middot; lead generation'},
+      {n:'iv', end:true, quote:'The official versions land within weeks &mdash; in one case, days.',
+       who:'Case studies in progress', meta:'these are true, or about to be'}
+    ];
+    var SPREADS=[[0,1],[2,3]];
+
+    var leafL=document.getElementById('leafL'), leafR=document.getElementById('leafR');
+    var faceLF=document.getElementById('faceLF'), faceLB=document.getElementById('faceLB');
+    var faceRF=document.getElementById('faceRF'), faceRB=document.getElementById('faceRB');
+    var dotsWrap=document.getElementById('dots');
+    if(!leafL||!leafR||!dotsWrap) return;
+
+    var cur=0, timer=null, busy=false;
+    var flat = reduce || window.matchMedia('(max-width:720px)').matches;
+
+    function html(p){
+      return '<div class="pg-num mono">'+p.n+'</div>'
+        + (p.end ? '<div class="pg-mark" aria-hidden="true">ψ</div>' : '')
+        + '<div class="pg-quote">'+p.quote+'</div>'
+        + '<div class="pg-who"><b>'+p.who+'</b><span>'+p.meta+'</span></div>';
+    }
+    function fill(face,p){ face.innerHTML=html(p); face.classList.toggle('is-end',!!p.end); }
+
+    var dots=[];
+    SPREADS.forEach(function(_,i){
+      var b=document.createElement('button');
+      b.type='button'; b.className='dot'+(i===0?' on':'');
+      b.setAttribute('aria-label','Spread '+(i+1)+' of '+SPREADS.length);
+      b.addEventListener('click',function(){ if(!busy) go(i); });
+      dotsWrap.appendChild(b); dots.push(b);
+    });
+
+    function render(){
+      var sp=SPREADS[cur];
+      fill(faceLF,PAGES[sp[0]]); fill(faceRF,PAGES[sp[1]]);
+      dots.forEach(function(d,i){ d.classList.toggle('on',i===cur); });
+    }
+
+    function settle(next){
+      cur=next; render();
+      leafR.classList.remove('turning','turn');
+      leafL.classList.remove('turning','turn');
+      busy=false;
+    }
+
+    function go(i,dir){
+      var next=(i+SPREADS.length)%SPREADS.length;
+      if(next===cur||busy) return;
+      restart();
+      if(flat){ cur=next; render(); return; }
+      busy=true;
+      if(dir==='prev'){
+        /* the left leaf lifts back over the spine, carrying the previous right page */
+        fill(faceLB,PAGES[SPREADS[next][1]]);
+        leafL.classList.add('turning');
+        requestAnimationFrame(function(){ leafL.classList.add('turn'); });
+      }else{
+        /* the right leaf turns over, its back face already showing the next left page */
+        fill(faceRB,PAGES[SPREADS[next][0]]);
+        leafR.classList.add('turning');
+        requestAnimationFrame(function(){ leafR.classList.add('turn'); });
+      }
+      setTimeout(function(){ settle(next); },880);
+    }
+    function next(){ go(cur+1,'next'); }
+    function prev(){ go(cur-1,'prev'); }
+
+    document.getElementById('nextPg').addEventListener('click',next);
+    document.getElementById('prevPg').addEventListener('click',prev);
+    function restart(){ clearInterval(timer); if(!reduce) timer=setInterval(next,7500); }
+
+    var io=new IntersectionObserver(function(en){
+      en.forEach(function(e){ if(e.isIntersecting){ restart(); } else { clearInterval(timer); } });
+    },{threshold:.35});
+    io.observe(document.querySelector('.book-sec'));
+    render();
+  })();
+})();
+
+/* ══ THE PROGNOSIS DIAGNOSTIC ══════════════════════════════════════════════
+   Headless integration. The engine scores; we own every pixel. The questions,
+   reveals and bands all come from the live config — nothing is duplicated or
+   reimplemented here, so tuning the instrument never means editing this page. */
+(function(){
+  'use strict';
+
+  /* ── THE ONE CONFIG VALUE ──────────────────────────────────────────────
+     When the quiz moves to a PsikiQ host (quiz.psikick.ai), change this line
+     and nothing else. It is deliberately not scattered through the code.
+     NOTE: the new origin must also be added to the engine's CORS allowlist
+     (lmg/config/quiz_embed.json) or the browser will block every call.      */
+  var QUIZ_BASE = 'https://crisisquiz.nowgroup.co.nz';
+  var QUIZ_KEY  = 'prognosis';
+
+  var API      = QUIZ_BASE + '/quiz/api/' + QUIZ_KEY;
+  var HOSTED   = QUIZ_BASE + '/quiz/' + QUIZ_KEY;
+  var CFG_TTL  = 300000; /* 5 min — reveals get tuned; never snapshot at build */
+
+  var qz = document.getElementById('qz');
+  if(!qz) return;
+  var inner    = document.getElementById('qzInner'),
+      axisWrap = document.getElementById('qzAxis'),
+      spectrum = document.getElementById('qzSpectrum'),
+      counter  = document.getElementById('qzCount');
+
+  var cfg=null, cfgAt=0, lastFocus=null, st=null;
+
+  function esc(t){
+    return String(t==null?'':t).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function reset(){
+    st={view:'loading',vertical:null,verticalLabel:null,queue:[],qi:0,
+        answers:{},reveal:null,result:null,err:null,query:''};
+  }
+
+  /* ── progress along the unaware → aware axis ── */
+  function prog(){
+    var total = 1 + (st.queue.length || (cfg && cfg.questions ? cfg.questions.length : 12));
+    var done  = (st.vertical?1:0) + Object.keys(st.answers).length;
+    return {done:done,total:total,pct:total?Math.round(done/total*100):0};
+  }
+  function paintAxis(){
+    var hide = (st.view==='loading'||st.view==='intro'||st.view==='error');
+    axisWrap.style.display = hide ? 'none' : '';
+    if(hide) return;
+    var done = st.view==='result' ? 100 : prog().pct;
+    spectrum.style.setProperty('--p', done+'%');
+    counter.textContent = st.view==='result'
+      ? 'read complete'
+      : prog().done + ' / ' + prog().total;
+  }
+
+  /* ── views ── */
+  function vIntro(){
+    var a = cfg.awareness||{};
+    return '<div class="qz-step mono">ii &middot; the measurement</div>'
+      + '<h2 class="qz-h">'+esc(cfg.title)+'</h2>'
+      + '<p class="qz-p"><b>'+esc(cfg.strapline)+'</b></p>'
+      + (a.frame ? '<p class="qz-p">'+esc(a.frame)+'</p>' : '')
+      + (cfg.intro ? '<p class="qz-p">'+esc(cfg.intro)+'</p>' : '')
+      + '<div class="qz-actions"><button class="qz-btn" type="button" data-act="begin">&#968;&nbsp; Begin</button></div>';
+  }
+  function vType(){
+    var vq = cfg.vertical_question||{};
+    return '<div class="qz-step mono">step 1 &middot; what you do</div>'
+      + '<h2 class="qz-h">'+esc(vq.prompt||'What kind of business do you run?')+'</h2>'
+      + '<input class="qz-search" id="qzSearch" type="text" autocomplete="off" spellcheck="false"'
+      + ' placeholder="Start typing &mdash; plumber, law firm, caf&eacute;, engineer&hellip;" value="'+esc(st.query)+'">'
+      + '<div class="qz-list" id="qzList"></div>';
+  }
+  function paintList(){
+    var list=document.getElementById('qzList');
+    if(!list) return;
+    var q=(st.query||'').trim().toLowerCase();
+    var all=cfg.business_types||[];
+    var hits=[];
+    for(var i=0;i<all.length;i++){
+      var label=all[i][0], lo=label.toLowerCase(), at=lo.indexOf(q);
+      if(q==='' || at>-1) hits.push({label:label,key:all[i][1],at:q?at:-1,len:q.length});
+    }
+    if(!hits.length){
+      list.innerHTML='<div class="qz-none mono">Nothing matches that. Try a broader word &mdash; or pick the closest trade.</div>';
+      return;
+    }
+    var out=[];
+    for(var j=0;j<hits.length;j++){
+      var h=hits[j], txt;
+      if(h.at>-1 && h.len){
+        txt = esc(h.label.slice(0,h.at))+'<em>'+esc(h.label.slice(h.at,h.at+h.len))+'</em>'+esc(h.label.slice(h.at+h.len));
+      }else{ txt = esc(h.label); }
+      out.push('<button class="qz-opt" type="button" data-vert="'+esc(h.key)+'" data-label="'+esc(h.label)+'">'+txt+'</button>');
+    }
+    list.innerHTML=out.join('');
+  }
+  function vQuestion(){
+    var q=st.queue[st.qi]||{};
+    return '<button class="qz-back mono" type="button" data-act="back">&larr; back</button>'
+      + '<div class="qz-step mono">question '+(st.qi+1)+' of '+st.queue.length+'</div>'
+      + '<h2 class="qz-h">'+esc(q.prompt)+'</h2>'
+      + '<div class="qz-choices">'
+      +   '<button class="qz-pick" type="button" data-ans="yes">'+esc(q.yes)+'</button>'
+      +   '<button class="qz-pick" type="button" data-ans="no">'+esc(q.no)+'</button>'
+      + '</div>';
+  }
+  /* the reveal is the awareness layer — it renders after EVERY answer */
+  function vReveal(){
+    return '<div class="qz-step mono">what that just told us</div>'
+      + '<div class="qz-reveal"><div class="rv-l mono">reveal</div>'
+      +   '<div class="rv-t">'+esc(st.reveal)+'</div></div>'
+      + '<div class="qz-actions"><button class="qz-btn" type="button" data-act="next">Continue</button></div>';
+  }
+  function vContact(){
+    var c=cfg.contact||{}, fields=c.fields||['poc_name','business_name','email'];
+    var names={poc_name:'Your name',business_name:'Business name',email:'Email'};
+    var types={email:'email'};
+    var f='';
+    for(var i=0;i<fields.length;i++){
+      var k=fields[i];
+      f += '<label>'+esc(names[k]||k)+'<input type="'+(types[k]||'text')+'" data-field="'+esc(k)+'" autocomplete="'
+         + (k==='email'?'email':(k==='poc_name'?'name':'organization'))+'"></label>';
+    }
+    /* honeypot — never labelled, never removed */
+    f += '<div class="qz-hp" aria-hidden="true"><label>Website'
+       + '<input type="text" id="qzHp" name="website_hp" tabindex="-1" autocomplete="off"></label></div>';
+    return '<div class="qz-step mono">last step &middot; optional</div>'
+      + '<h2 class="qz-h">Your read is ready.</h2>'
+      + '<p class="qz-p">'+esc(c.prompt||'Want the full read sent to you?')+'</p>'
+      + '<div class="qz-fields">'+f+'</div>'
+      + '<div class="qz-actions">'
+      +   '<button class="qz-btn" type="button" data-act="send">Send it to me</button>'
+      +   '<button class="qz-skip mono" type="button" data-act="skip">Skip &mdash; just show my read</button>'
+      + '</div>';
+  }
+  function tile(label,value,sub){
+    return '<div class="qz-tile"><div class="t-l mono">'+esc(label)+'</div>'
+      + '<div class="t-v">'+esc(value)+'</div>'
+      + (sub?'<div class="t-s mono">'+esc(sub)+'</div>':'')+'</div>';
+  }
+  function pct(n){ return (n==null)?'':(Math.round(n*100)+'% confidence'); }
+  function vResult(){
+    var r=st.result||{}, read=r.read||{};
+    var kinds={at_edge:'the read &middot; at the edge',agreement:'the read &middot; in agreement',hybrid:'the read &middot; hybrid'};
+    /* most verticals have no sector model — "—" is the common path, not an edge case */
+    var sb=read.sector_band, hasSector = sb && sb!=='—' && sb!=='-' && sb!=='';
+    var tiles = tile('general stage', read.coarse_band||'—', pct(read.coarse_confidence));
+    if(hasSector){
+      tiles += tile('sector stage', sb, pct(read.sector_confidence));
+      var dv=Number(read.divergence);
+      tiles += tile('the gap', (dv>0?'+':'')+(isNaN(dv)?'—':dv.toFixed(1)), 'general vs sector');
+    }
+    var out = '<div class="qz-kind mono">'+(kinds[r.kind]||'the read')+'</div>'
+      + '<h2 class="qz-h">'+esc(r.headline)+'</h2>'
+      + '<p class="qz-p">'+esc(r.body)+'</p>'
+      + '<div class="qz-tiles">'+tiles+'</div>'
+      + (hasSector ? '' : '<div class="qz-note mono">Coarse read only &mdash; no sector model for '
+          + esc(st.verticalLabel||'this trade')+' yet, so the stage is read on general markers alone.</div>')
+      + (r.narrative ? '<div class="qz-narr mono">'+esc(r.narrative)+'</div>' : '')
+      + '<div class="qz-now">'
+      +   (r.now_visible?'<div class="n-t">'+esc(r.now_visible)+'</div>':'')
+      +   (r.closing?'<div class="n-c">'+esc(r.closing)+'</div>':'')
+      + '</div>';
+    /* at_edge is the in-market signal — the strongest moment to place the CTA */
+    if(read.at_edge){
+      out += '<div class="qz-edge"><div class="e-l mono">you are at a transition</div>'
+        + '<p>Your structure and your tooling have come apart. That gap is the crisis forming '
+        + 'in front of you &mdash; and it is the cheapest moment to act on it.</p></div>';
+    }
+    var book = window.PSIKIQ_BOOK_URL;
+    out += '<div class="qz-actions">'
+      + (book ? '<a class="qz-btn" href="'+esc(book)+'">&#968;&nbsp; Book the diagnostic</a>'
+              : '<button class="qz-btn" type="button" data-act="close">&#968;&nbsp; Back to PsikiQ</button>')
+      + '<button class="qz-skip mono" type="button" data-act="restart">Run it again</button>'
+      + '</div>';
+    return out;
+  }
+  function vError(){
+    var msgs={
+      reach:'We can&rsquo;t reach the instrument right now. It runs on its own host, so this is usually brief.',
+      rate:'That&rsquo;s a lot of reads from one place in a short time. Give it five minutes and run it again &mdash; the limit is there to keep bots out, not you.',
+      submit:'The instrument took your answers but couldn&rsquo;t return a read. Nothing is lost &mdash; try once more.'
+    };
+    return '<div class="qz-step mono">interrupted</div>'
+      + '<div class="qz-err">'+(msgs[st.err]||msgs.submit)+'</div>'
+      + '<div class="qz-actions">'
+      +   '<button class="qz-btn" type="button" data-act="retry">Try again</button>'
+      +   '<a class="qz-skip mono" href="'+HOSTED+'">Open it directly instead</a>'
+      + '</div>';
+  }
+
+  function render(){
+    var v=st.view, html;
+    if(v==='loading')      html='<div class="qz-spin mono">opening the instrument&hellip;</div>';
+    else if(v==='sending') html='<div class="qz-spin mono">collapsing your answers into a read&hellip;</div>';
+    else if(v==='intro')   html=vIntro();
+    else if(v==='type')    html=vType();
+    else if(v==='q')       html=vQuestion();
+    else if(v==='reveal')  html=vReveal();
+    else if(v==='contact') html=vContact();
+    else if(v==='result')  html=vResult();
+    else                   html=vError();
+    inner.innerHTML=html;
+    paintAxis();
+    if(v==='type'){
+      paintList();
+      var si=document.getElementById('qzSearch');
+      if(si && !('ontouchstart' in window)) si.focus();
+    }
+    inner.parentNode.scrollTop=0;
+  }
+
+  /* ── flow ── */
+  function loadConfig(){
+    if(cfg && (Date.now()-cfgAt)<CFG_TTL){ st.view='intro'; render(); return; }
+    fetch(API+'/config',{headers:{'Accept':'application/json'}})
+      .then(function(r){ if(!r.ok) throw new Error('cfg'); return r.json(); })
+      .then(function(j){ cfg=j; cfgAt=Date.now(); st.view='intro'; render(); })
+      .catch(function(){ st.err='reach'; st.view='error'; render(); });
+  }
+  function buildQueue(){
+    var q=(cfg.questions||[]).slice();
+    var sq=(cfg.sector_questions||{})[st.vertical];
+    if(sq && sq.length) q=q.concat(sq);
+    st.queue=q; st.qi=0;
+  }
+  function answer(val){
+    var q=st.queue[st.qi];
+    if(!q) return;
+    st.answers[q.marker]=val;
+    if(q.reveal){ st.reveal=q.reveal; st.view='reveal'; }
+    else advance();
+    render();
+  }
+  function advance(){
+    st.qi++;
+    st.view = (st.qi>=st.queue.length) ? 'contact' : 'q';
+  }
+  function submit(withContact){
+    var contact=null;
+    if(withContact){
+      contact={};
+      [].forEach.call(inner.querySelectorAll('[data-field]'),function(el){
+        contact[el.getAttribute('data-field')]=el.value.trim();
+      });
+    }
+    var hp=document.getElementById('qzHp');
+    var payload={
+      vertical: st.vertical,
+      vertical_nested: st.verticalLabel,
+      answers: st.answers,
+      contact: contact,
+      website_hp: hp ? hp.value : ''
+    };
+    st.view='sending'; render();
+    fetch(API+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){
+        if(r.status===429){ var e=new Error('rate'); e.code='rate'; throw e; }
+        if(!r.ok) throw new Error('submit');
+        return r.json();
+      })
+      .then(function(j){ st.result=j; st.view='result'; render(); })
+      .catch(function(e){ st.err=(e && e.code==='rate')?'rate':'submit'; st.view='error'; render(); });
+  }
+
+  /* ── open / close ── */
+  function open(){
+    lastFocus=document.activeElement;
+    reset();
+    qz.classList.add('open');
+    document.body.classList.add('qz-lock');
+    render();
+    loadConfig();
+    document.getElementById('qzClose').focus();
+  }
+  function close(){
+    qz.classList.remove('open');
+    document.body.classList.remove('qz-lock');
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  /* ── events ── */
+  document.getElementById('qzClose').addEventListener('click',close);
+  qz.addEventListener('mousedown',function(e){ if(e.target===qz) close(); });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && qz.classList.contains('open')) close();
+  });
+  inner.addEventListener('input',function(e){
+    if(e.target && e.target.id==='qzSearch'){ st.query=e.target.value; paintList(); }
+  });
+  inner.addEventListener('click',function(e){
+    var t=e.target.closest ? e.target.closest('[data-act],[data-ans],[data-vert]') : null;
+    if(!t) return;
+    var act=t.getAttribute('data-act');
+    if(t.hasAttribute('data-vert')){
+      st.vertical=t.getAttribute('data-vert');
+      st.verticalLabel=t.getAttribute('data-label');
+      buildQueue(); st.view='q'; render(); return;
+    }
+    if(t.hasAttribute('data-ans')){ answer(t.getAttribute('data-ans')==='yes'); return; }
+    if(act==='begin'){ st.view='type'; render(); }
+    else if(act==='next'){ advance(); render(); }
+    else if(act==='back'){
+      if(st.qi>0){ st.qi--; delete st.answers[st.queue[st.qi].marker]; st.view='q'; }
+      else { st.vertical=null; st.verticalLabel=null; st.queue=[]; st.answers={}; st.view='type'; }
+      render();
+    }
+    else if(act==='send'){ submit(true); }
+    else if(act==='skip'){ submit(false); }
+    else if(act==='retry'){ if(!cfg){ st.view='loading'; render(); loadConfig(); } else { submit(false); } }
+    else if(act==='restart'){ reset(); st.view='intro'; render(); }
+    else if(act==='close'){ close(); }
+  });
+
+  /* the CTAs. href is the hosted quiz so the link is never dead without JS;
+     the click is intercepted to keep people inside PsikiQ. */
+  [].forEach.call(document.querySelectorAll('[data-cta="quiz"]'),function(el){
+    el.setAttribute('href',HOSTED);
+    el.addEventListener('click',function(ev){ ev.preventDefault(); open(); });
+  });
+})();
+
+/* ══ THE GEAR TRAIN ════════════════════════════════════════════════════════
+   Three gears in real mesh. Pitch radius = module x teeth / 2, so the centres
+   sit exactly tangent; angular velocity is inversely proportional to tooth
+   count and the sign alternates. Gears that don't mesh read as decoration —
+   these do the arithmetic, which is the whole point of the section.          */
+(function(){
+  'use strict';
+  var svg=document.getElementById('gearTrain');
+  if(!svg) return;
+  var NS='http://www.w3.org/2000/svg';
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var MODULE=7, DEPTH=7, W0=7;           /* deg/sec on the first wheel */
+  var TRAIN=[
+    {n:28, cap:'catalogue',  hub:23},
+    {n:18, cap:'markers',    hub:18},
+    {n:12, cap:'comparator', hub:15}
+  ];
+
+  function el(t,a){ var e=document.createElementNS(NS,t); for(var k in a) e.setAttribute(k,a[k]); return e; }
+  function pt(r,a){ return [ +(r*Math.cos(a)).toFixed(2), +(r*Math.sin(a)).toFixed(2) ]; }
+
+  /* one tooth cycle: rise, outer arc, fall, root arc */
+  function gearPath(n,rp,depth){
+    var ro=rp+depth, ri=rp-depth, step=Math.PI*2/n, d='', i, a, p;
+    for(i=0;i<n;i++){
+      a=i*step;
+      if(i===0){ p=pt(ri,a); d+='M'+p[0]+','+p[1]; }
+      p=pt(ro,a+step*0.10); d+='L'+p[0]+','+p[1];
+      p=pt(ro,a+step*0.44); d+='A'+ro+','+ro+' 0 0 1 '+p[0]+','+p[1];
+      p=pt(ri,a+step*0.54); d+='L'+p[0]+','+p[1];
+      p=pt(ri,a+step);      d+='A'+ri+','+ri+' 0 0 1 '+p[0]+','+p[1];
+    }
+    return d+'Z';
+  }
+
+  var BASE = MODULE*TRAIN[0].n/2 + DEPTH + 26;   /* one caption baseline for all three */
+  var cx=0, rotors=[], prev=null;
+  TRAIN.forEach(function(g,i){
+    g.rp = MODULE*g.n/2;
+    if(prev) cx += prev.rp + g.rp;        /* tangent pitch circles = true mesh */
+    g.cx = cx;
+    g.w  = W0 * (TRAIN[0].n/g.n) * (i%2 ? -1 : 1);
+    prev = g;
+
+    var wrap=el('g',{transform:'translate('+g.cx+',0)'});
+    wrap.appendChild(el('circle',{class:'gear-pitch', r:g.rp}));
+
+    var rot=el('g',{});
+    rot.appendChild(el('path',{class:'gear-ring', d:gearPath(g.n,g.rp,DEPTH)}));
+    rot.appendChild(el('circle',{class:'gear-body', r:g.rp*0.6}));
+    for(var k=0;k<5;k++){
+      var a=k*Math.PI*2/5, p1=pt(g.hub,a), p2=pt(g.rp*0.6,a);
+      rot.appendChild(el('line',{class:'gear-spoke', x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1]}));
+    }
+    wrap.appendChild(rot);
+    rotors.push({el:rot, w:g.w});
+
+    /* the hub stays still, so its figures stay readable while the wheel turns */
+    wrap.appendChild(el('circle',{class:'gear-hub', r:g.hub}));
+    var n=el('text',{class:'gear-n','text-anchor':'middle', y:1}); n.textContent=g.n;
+    var t=el('text',{class:'gear-t','text-anchor':'middle', y:12}); t.textContent='TEETH';
+    var c=el('text',{class:'gear-cap','text-anchor':'middle', y:BASE}); c.textContent=g.cap;
+    wrap.appendChild(n); wrap.appendChild(t); wrap.appendChild(c);
+    svg.appendChild(wrap);
+  });
+
+  /* park it at a pleasing angle; only turn while it is actually on screen */
+  rotors.forEach(function(r,i){ r.a = i*4; r.el.setAttribute('transform','rotate('+r.a+')'); });
+  if(reduce) return;
+
+  var running=false, last=0;
+  function frame(ts){
+    if(!running) return;
+    var dt = last ? Math.min((ts-last)/1000, 0.05) : 0;
+    last = ts;
+    for(var i=0;i<rotors.length;i++){
+      rotors[i].a = (rotors[i].a + rotors[i].w*dt) % 360;
+      rotors[i].el.setAttribute('transform','rotate('+rotors[i].a.toFixed(2)+')');
+    }
+    requestAnimationFrame(frame);
+  }
+  new IntersectionObserver(function(en){
+    en.forEach(function(e){
+      if(e.isIntersecting && !running){ running=true; last=0; requestAnimationFrame(frame); }
+      else if(!e.isIntersecting){ running=false; }
+    });
+  },{threshold:.15}).observe(svg);
+})();
+
+/* ══ THE CYCLE ═════════════════════════════════════════════════════════════
+   Greiner's phases orbit rather than climb, because the model is a wheel: each
+   phase ends in the crisis that forces the next. Depth is faked with scale,
+   opacity and blur off cos(theta) — cheaper than real 3D and it composites
+   without a stacking-context fight.                                          */
+(function(){
+  'use strict';
+  var orbit=document.getElementById('orbit');
+  if(!orbit) return;
+  var cards=[].slice.call(orbit.querySelectorAll('.phase'));
+  var dotsWrap=document.getElementById('orbDots');
+  var n=cards.length;
+  if(!n||!dotsWrap) return;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if(reduce){ orbit.classList.add('flat'); return; }   /* becomes the plain sequence */
+
+  var cur=0, RX=240, timer=null, dots=[];
+
+  cards.forEach(function(c,i){
+    c.addEventListener('click',function(){ if(i!==cur){ go(i); } });
+    var d=document.createElement('button');
+    d.type='button'; d.className='dot'+(i===0?' on':'');
+    d.setAttribute('aria-label','Phase '+(i+1)+' of '+n);
+    d.addEventListener('click',function(){ go(i); });
+    dotsWrap.appendChild(d); dots.push(d);
+  });
+
+  function measure(){
+    var w = orbit.clientWidth || orbit.parentElement.clientWidth
+            || document.documentElement.clientWidth || 900;
+    RX = Math.max(120, Math.min(w*0.33, 250));
+    cards.forEach(function(c){ c.style.marginTop=(-c.offsetHeight/2)+'px'; });
+  }
+  function place(){
+    for(var i=0;i<n;i++){
+      var d=i-cur;
+      if(d >  n/2) d-=n;
+      if(d < -n/2) d+=n;
+      var th=d*(Math.PI*2/n);
+      var depth=(Math.cos(th)+1)/2;                 /* 1 front, 0 back */
+      var X=Math.sin(th)*RX;
+      var Y=(1-depth)*30;
+      var sc=0.60+0.40*depth;
+      var op=0.14+0.86*Math.pow(depth,1.7);
+      var c=cards[i];
+      c.style.transform='translate3d('+X.toFixed(1)+'px,'+Y.toFixed(1)+'px,0) scale('+sc.toFixed(3)+')';
+      c.style.opacity=op.toFixed(3);
+      c.style.filter='blur('+((1-depth)*3.4).toFixed(2)+'px)';
+      c.style.zIndex=Math.round(depth*100);
+      c.classList.toggle('is-front', i===cur);
+      c.setAttribute('aria-hidden', i===cur ? 'false' : 'true');
+    }
+    dots.forEach(function(d,i){ d.classList.toggle('on', i===cur); });
+  }
+  function go(i){ cur=(i+n)%n; place(); restart(); }
+  function next(){ go(cur+1); }
+  function restart(){ clearInterval(timer); timer=setInterval(next,5200); }
+
+  document.getElementById('orbNext').addEventListener('click',next);
+  document.getElementById('orbPrev').addEventListener('click',function(){ go(cur-1); });
+  orbit.addEventListener('mouseenter',function(){ clearInterval(timer); });
+  orbit.addEventListener('mouseleave',restart);
+  window.addEventListener('resize',function(){ measure(); place(); });
+
+  measure(); place();
+  /* the first measure can land before layout has a width — re-run it whenever
+     the box changes size, and again once everything has loaded */
+  if(window.ResizeObserver){ new ResizeObserver(function(){ measure(); place(); }).observe(orbit); }
+  window.addEventListener('load',function(){ measure(); place(); });
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ measure(); place(); }); }
+  new IntersectionObserver(function(en){
+    en.forEach(function(e){
+      measure(); place();
+      if(e.isIntersecting){ restart(); } else { clearInterval(timer); }
+    });
+  },{threshold:.25}).observe(orbit);
+})();
+</script>
