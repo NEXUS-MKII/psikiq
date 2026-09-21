@@ -71,8 +71,19 @@
   .hud .state{position:absolute;bottom:18px;right:52px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;color:var(--silver-2);opacity:.85;}
   @media(max-width:640px){.hud .readout,.hud .state{display:none;}.hud .progress{left:18px;right:18px;}}
 
-  .hero{position:relative;height:100vh;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;}
-  .hero .light{background:var(--white);}
+  .hero{position:relative;height:100vh;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;background:var(--void);}
+  .hero .light{background:var(--white);position:relative;z-index:1;}
+  .hero > .steel{z-index:1;}
+  /* ── the film under the split. Loads solid; once the video can actually play,
+        both panels thin over a few seconds so it ghosts through — the dark half
+        as light through steel, the light half as a figure through frosted glass.
+        The seam and the mark never thin. ── */
+  .hero-vid{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;
+    filter:saturate(.5) contrast(1.06) brightness(.92);opacity:0;transition:opacity 1.2s ease;}
+  .hero.vid-ready .hero-vid{opacity:1;}
+  .hero > .steel,.hero .light{transition:opacity 3.2s cubic-bezier(.4,0,.2,1) .9s;}
+  .hero.vid-ready > .steel{opacity:.72;}
+  .hero.vid-ready .light{opacity:.84;}
   .hero .seam{position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:100%;background:var(--gold);z-index:5;box-shadow:0 0 22px 1px var(--accent-glow);}
   /* blend the hero down into the dark beat below — no hard edge */
   .hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:15%;z-index:6;pointer-events:none;
@@ -648,6 +659,7 @@
     .cb-stage{position:relative;}
     .ax-spectrum{transition:none!important;}
     .movement svg{opacity:1;}
+    .hero-vid{display:none;}
   }
 </style>
 <script>document.documentElement.className+=' js';</script>
@@ -672,6 +684,10 @@
   </div>
 
   <section class="hero" data-phase="SUPERPOSITION|UNRESOLVED">
+    <!-- BACKGROUND FILM — fill data-mp4 / data-webm / data-poster and it wires itself.
+         Leave them empty and the hero stays solid, exactly as now. -->
+    <video class="hero-vid" id="heroVid" muted loop playsinline preload="none" aria-hidden="true"
+           data-mp4="" data-webm="" data-poster=""></video>
     <div class="steel"></div><div class="light"></div><div class="seam"></div>
     <div class="hero-center">
       <div class="psi-mark">
@@ -1023,6 +1039,31 @@
   window.addEventListener('scroll',onScroll,{passive:true});
   window.addEventListener('resize',onScroll);
   progress(); collapse(); turnRollers();
+
+  /* ── the hero film. Nothing downloads until the page has loaded; nothing on
+        phones, slow connections or reduced motion; the panels only thin once the
+        browser confirms it can play. ── */
+  (function(){
+    var v=document.getElementById('heroVid'), hero=document.querySelector('.hero');
+    if(!v||!hero) return;
+    var mp4=v.getAttribute('data-mp4'), webm=v.getAttribute('data-webm'), poster=v.getAttribute('data-poster');
+    if(!mp4 && !webm) return;
+    if(reduce) return;
+    if(window.innerWidth<=640) return;
+    var c=navigator.connection; if(c && (c.saveData || /2g/.test(c.effectiveType||''))) return;
+    function start(){
+      if(poster) v.setAttribute('poster',poster);
+      if(webm){ var s1=document.createElement('source'); s1.src=webm; s1.type='video/webm'; v.appendChild(s1); }
+      if(mp4){ var s2=document.createElement('source'); s2.src=mp4; s2.type='video/mp4'; v.appendChild(s2); }
+      v.addEventListener('canplay',function(){
+        var p=v.play(); if(p && p.catch) p.catch(function(){});
+        hero.classList.add('vid-ready');
+      },{once:true});
+      v.load();
+    }
+    if(document.readyState==='complete') setTimeout(start,400);
+    else window.addEventListener('load',function(){ setTimeout(start,400); });
+  })();
 
   /* phase readout follows whichever section owns the middle of the viewport */
   var phaseO=new IntersectionObserver(function(en){
