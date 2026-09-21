@@ -1,5 +1,7 @@
-/* PsikiQ home — paste into the PAGE's Custom CSS (Page settings → Custom CSS) */
-
+<!-- 00 · HEAD — paste FIRST. Fonts + the whole stylesheet + the two fixed layers. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Michroma&family=Chakra+Petch:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Michroma&family=Chakra+Petch:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
   /* PRIMARY: Oswald (tall, condensed, tight — Impact-but-premium). SECONDARY display: Michroma (wide). BODY: Chakra Petch light. DATA: JetBrains Mono. */
   :root{
     --void:#17110A;
@@ -31,15 +33,9 @@
         rgba(230,190,106,.10) 62%,
         transparent 84%);
   }
-  .pq,.pq *{box-sizing:border-box;margin:0;padding:0;}
+  *{box-sizing:border-box;margin:0;padding:0;}
   html{scroll-behavior:smooth;}
-  /* .pq is the page root. The width trick breaks it out of whatever container
-     GHL puts it in, so the split hero and the rollers run the full viewport. */
-  .pq{font-family:'Chakra Petch',system-ui,sans-serif;font-weight:300;background:var(--void);color:var(--white);
-    line-height:1.55;-webkit-font-smoothing:antialiased;position:relative;
-    width:var(--pqw,100vw);margin-left:calc(50% - var(--pqw,100vw) / 2);text-align:left;}
-  html,body{overflow-x:hidden;}
-  .pq img{max-width:none;}
+  body{font-family:'Chakra Petch',system-ui,sans-serif;font-weight:300;background:var(--void);color:var(--white);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
   .disp{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.01em;line-height:1.0;text-transform:uppercase;}
   .wide{font-family:'Michroma',sans-serif;}
   .mono{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0;}
@@ -644,8 +640,24 @@
     .ax-spectrum{transition:none!important;}
     .movement svg{opacity:1;}
   }
+</style>
+<script>document.documentElement.className+=' js';</script>
+  <!-- THE SEEKER — living golden winged orb that flies the page & illuminates -->
+  <div class="seeker" id="seeker" aria-hidden="true">
+    <div class="seeker-glow"></div>
+    <svg class="seeker-body" viewBox="-40 -28 80 56">
+      <path class="wing wl" d="M-8,-2 C-20,-16 -36,-12 -40,-2 C-36,8 -20,12 -8,-2 Z"/>
+      <path class="wing wr" d="M8,-2 C20,-16 36,-12 40,-2 C36,8 20,12 8,-2 Z"/>
+      <circle class="q-ring" r="8.5" cx="0" cy="-2"/>
+      <path class="q-tail" d="M4.5,3.5 L12,12"/>
+      <circle class="core" r="4.2" cx="0" cy="-2"/>
+    </svg>
+  </div>
 
-  /* GHL ships heading/paragraph/anchor defaults — neutralise them inside the page */
-  .pq h2,.pq h3,.pq p,.pq a{margin:0;}
-  .pq a{text-decoration:none;}
-  .pq button{font:inherit;}
+  <div class="hud">
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="readout mono">&#968;&nbsp;PSIKIQ&nbsp;<span class="w">//</span>&nbsp;<span id="rd">SUPERPOSITION</span></div>
+    <div class="state mono" id="st">STATE&nbsp;&middot;&nbsp;UNRESOLVED</div>
+    <div class="progress"><div class="fill" id="pf"></div></div>
+  </div>
+
